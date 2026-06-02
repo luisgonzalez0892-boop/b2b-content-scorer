@@ -14,7 +14,7 @@ with st.sidebar:
     openai_api_key = st.text_input("Enter OpenAI API Key", type="password")
     st.info("Your API key is processed securely and never stored permanently.")
 
-# Main Input Form - Cleaned up to remove manual competitor entry
+# Main Input Form
 with st.form("scoring_form"):
     col1, col2 = st.columns(2)
     with col1:
@@ -162,4 +162,7 @@ if submit_button:
                 with st.expander(f"🤖 GEO / AI Parseability ({pillars.get('geo_parseability', {}).get('score', 0)}/25)"):
                     geo = pillars.get('geo_parseability', {})
                     st.markdown(f"**Definitional Clarity:** {geo.get('definitional_clarity')}")
-                    st.markdown
+                    st.markdown(f"**Formatting for LLMs:** {geo.get('structural_formatting')}")
+
+            except Exception as e:
+                st.error(f"An error occurred during analysis: {str(e)}")
