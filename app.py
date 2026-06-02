@@ -34,35 +34,47 @@ if submit_button:
     elif not content_draft or not company_name or not target_topic:
         st.error("Please fill out the Company Name, Target Topic, and Content Draft fields.")
     else:
-        with st.spinner("Dynamically identifying competitors and analyzing content depth..."):
+        with st.spinner("Executing deep-dive agency-grade rubric analysis..."):
             try:
                 # Initialize OpenAI Client
                 client = openai.OpenAI(api_key=openai_api_key)
                 
-                # Formulate the System Prompt (Instructing the AI to find competitors contextually)
+                # THE UPGRADED SYSTEM PROMPT
                 system_prompt = """
-                You are an expert B2B Content Director, SEO Strategist, and Generative Engine Optimization (GEO) specialist. 
+                You are a ruthless, top-tier B2B Managing Editor and Technical SEO Strategist. 
+                Do not provide generic advice like "use active voice" or "add more headings." You must provide granular, receipt-driven feedback.
                 
-                Your first step is to analyze the provided company name, website, and target topic to identify the top 2-3 most likely business or search competitors writing on this exact topic.
+                Start with a perfect score of 25 for each of the 4 pillars, and DEDUCT points for specific infractions.
                 
-                Your second step is to evaluate the content draft against those identified competitors, assigning a sub-score (0-25) to each pillar.
-                
-                You must return your analysis strictly as a valid JSON object. Do not include any markdown formatting or commentary outside the JSON.
-                The JSON must follow this exact schema:
+                You MUST return a valid JSON object matching this exact schema:
                 {
-                    "global_score": 78,
-                    "identified_competitors": ["Competitor Name/URL 1", "Competitor Name/URL 2"],
-                    "top_3_actions": ["Action 1", "Action 2", "Action 3"],
-                    "editorial_score": 20,
-                    "editorial_feedback": "Detailed feedback on tone, clarity, and brand alignment.",
-                    "competitive_score": 18,
-                    "competitive_feedback": "Detailed feedback explaining how the content stacks up specifically against the identified competitors, noting what themes they covered that this draft missed (Information Gain).",
-                    "seo_score": 22,
-                    "seo_feedback": "Detailed feedback on keyword intent, structure, and internal linking.",
-                    "geo_score": 15,
-                    "geo_feedback": "Detailed feedback on LLM-parseability, data density, and clear definitions."
+                    "global_score": 82,
+                    "top_3_actions": ["Specific action 1", "Specific action 2", "Specific action 3"],
+                    "pillars": {
+                        "editorial": {
+                            "score": 20,
+                            "primary_infraction": "Too much introductory fluff before delivering value.",
+                            "quote_from_draft": "[Exact sentence from the user's draft that is failing]",
+                            "suggested_rewrite": "[Your ruthless, agency-grade rewrite of that sentence]"
+                        },
+                        "competitive_info_gain": {
+                            "score": 18,
+                            "identified_competitors": ["Competitor A", "Competitor B"],
+                            "missing_angle": "Identify a specific sub-topic or perspective the competitors cover that this draft missed.",
+                            "data_recommendation": "Suggest a specific type of statistic or case study they need to add to win the click."
+                        },
+                        "seo_structure": {
+                            "score": 22,
+                            "entity_salience": "Is the target topic clearly defined in the first 100 words? (Yes/No - Explain)",
+                            "header_critique": "Critique the specific H2s/H3s used. Are they search-intent aligned?"
+                        },
+                        "geo_parseability": {
+                            "score": 15,
+                            "definitional_clarity": "Does this provide a clear, LLM-friendly 'What is X?' definition? If not, write one for them.",
+                            "structural_formatting": "Critique their use of bullet points, tables, and bold text for AI scraping."
+                        }
+                    }
                 }
-                Each score sub-category must be out of 25 points, combining for a global score out of 100 points.
                 """
                 
                 user_prompt = f"""
@@ -82,14 +94,14 @@ if submit_button:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    temperature=0.3
+                    temperature=0.2 # Lower temperature for stricter, more analytical output
                 )
                 
                 # Parse JSON Result
                 result = json.loads(response.choices[0].message.content)
                 
-                # --- RENDER DASHBOARD ---
-                st.success("Analysis Complete!")
+                # --- RENDER THE NEW ROBUST DASHBOARD ---
+                st.success("Deep Analysis Complete!")
                 
                 # Layout columns for Score and Competitors
                 score_col, comp_col = st.columns([1, 2])
@@ -107,7 +119,8 @@ if submit_button:
                 
                 with comp_col:
                     st.header("⚔️ Contextual Competitors Evaluated")
-                    competitors = result.get("identified_competitors", [])
+                    pillars = result.get("pillars", {})
+                    competitors = pillars.get("competitive_info_gain", {}).get("identified_competitors", [])
                     if competitors:
                         for comp in competitors:
                             st.markdown(f"• **{comp}**")
@@ -117,26 +130,36 @@ if submit_button:
                 st.divider()
                 
                 # 2. Top 3 Action Items
-                st.subheader("🚀 Top 3 High-Impact Fixes")
+                st.subheader("🚀 Top 3 Mandatory Revisions")
                 for action in result.get("top_3_actions", []):
-                    st.info(action)
+                    st.warning(action)
                     
                 st.divider()
                 
                 # 3. Four Pillar Dropdowns
-                st.subheader("🔍 Detailed Pillar Breakdown")
+                st.subheader("🔍 The Definitive Grading Rubric")
                 
-                with st.expander(f"✍️ Editorial & Brand Alignment ({result.get('editorial_score', 0)}/25)"):
-                    st.write(result.get("editorial_feedback", "No feedback provided."))
-                    
-                with st.expander(f"⚔️ Competitive Stacking & Information Gain ({result.get('competitive_score', 0)}/25)"):
-                    st.write(result.get("competitive_feedback", "No feedback provided."))
-                    
-                with st.expander(f"📈 SEO Best Practices ({result.get('seo_score', 0)}/25)"):
-                    st.write(result.get("seo_feedback", "No feedback provided."))
-                    
-                with st.expander(f"🤖 GEO / AI Engine Optimization ({result.get('geo_score', 0)}/25)"):
-                    st.write(result.get("geo_feedback", "No feedback provided."))
-                    
-            except Exception as e:
-                st.error(f"An error occurred during analysis: {str(e)}")
+                # Editorial Expander
+                with st.expander(f"✍️ Editorial & Brand Voice ({pillars.get('editorial', {}).get('score', 0)}/25)"):
+                    ed = pillars.get('editorial', {})
+                    st.markdown(f"**Primary Infraction:** {ed.get('primary_infraction')}")
+                    st.error(f"**Weak Copy:** \"{ed.get('quote_from_draft')}\"")
+                    st.success(f"**Pro Rewrite:** \"{ed.get('suggested_rewrite')}\"")
+                
+                # Info Gain Expander
+                with st.expander(f"⚔️ Information Gain & Competitors ({pillars.get('competitive_info_gain', {}).get('score', 0)}/25)"):
+                    ig = pillars.get('competitive_info_gain', {})
+                    st.markdown(f"**Missing Angle (How to beat them):** {ig.get('missing_angle')}")
+                    st.markdown(f"**Data to Add:** {ig.get('data_recommendation')}")
+                
+                # SEO Expander
+                with st.expander(f"📈 SEO & Intent Match ({pillars.get('seo_structure', {}).get('score', 0)}/25)"):
+                    seo = pillars.get('seo_structure', {})
+                    st.markdown(f"**Entity Salience (First 100 Words):** {seo.get('entity_salience')}")
+                    st.markdown(f"**Header Structure Critique:** {seo.get('header_critique')}")
+                
+                # GEO Expander
+                with st.expander(f"🤖 GEO / AI Parseability ({pillars.get('geo_parseability', {}).get('score', 0)}/25)"):
+                    geo = pillars.get('geo_parseability', {})
+                    st.markdown(f"**Definitional Clarity:** {geo.get('definitional_clarity')}")
+                    st.markdown
