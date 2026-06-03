@@ -6,7 +6,7 @@ import json
 st.set_page_config(page_title="B2B Content Scoring Tool", layout="wide")
 
 st.title("🎯 B2B Content Scoring & Feedback Engine")
-st.caption("Get instant, actionable editorial, SEO, and GEO analysis with automated competitor tracking.")
+st.caption("Paragraph-by-paragraph editorial, SEO, and GEO analysis.")
 
 # Sidebar for Configuration & API Keys
 with st.sidebar:
@@ -34,58 +34,51 @@ if submit_button:
     elif not content_draft or not company_name or not target_topic:
         st.error("Please fill out the Company Name, Target Topic, and Content Draft fields.")
     else:
-        with st.spinner("Executing high-density agency-grade rubric analysis..."):
+        with st.spinner("Executing paragraph-by-paragraph rubric analysis..."):
             try:
                 client = openai.OpenAI(api_key=openai_api_key)
                 
-                # THE HIGH-DENSITY SYSTEM PROMPT
                 system_prompt = """
                 You are a ruthless, top-tier B2B Managing Editor and Technical SEO Strategist. 
-                Your feedback must be incredibly dense, highly specific, and comprehensive. Do not be brief.
-                
-                Start with a perfect score of 25 for each of the 4 pillars, and DEDUCT points for specific infractions.
+                Your core task is to provide a linear, PARAGRAPH-BY-PARAGRAPH analysis of the submitted draft.
                 
                 You MUST return a valid JSON object matching this exact schema:
                 {
                     "global_score": 82,
                     "top_3_actions": [
-                        "A dense, 2-sentence explanation of the first major structural fix required.", 
-                        "A dense, 2-sentence explanation of the second fix.", 
-                        "A dense, 2-sentence explanation of the third fix."
+                        "Actionable fix 1", 
+                        "Actionable fix 2", 
+                        "Actionable fix 3"
                     ],
-                    "pillars": {
-                        "editorial": {
-                            "score": 20,
-                            "comprehensive_analysis": "Write a dense, 3-4 sentence paragraph explaining the overall tone, flow, and structural flaws of the piece.",
-                            "line_edits": [
-                                {"quote": "[Exact weak sentence 1]", "rewrite": "[Pro rewrite]", "reason": "Why this change matters."},
-                                {"quote": "[Exact weak sentence 2]", "rewrite": "[Pro rewrite]", "reason": "Why this change matters."}
-                            ]
-                        },
+                    "block_by_block_analysis": [
+                        {
+                            "original_block_excerpt": "The first 5-7 words of the paragraph being analyzed...",
+                            "primary_issue": "e.g., Fluff / Lacks Info Gain / Poor SEO / Missed GEO Format / Solid (No changes)",
+                            "critique": "Dense 2-sentence explanation of what is wrong with this specific paragraph.",
+                            "pro_rewrite": "A fully rewritten, optimized version of the paragraph."
+                        }
+                    ],
+                    "macro_pillars": {
                         "competitive_info_gain": {
-                            "score": 18,
                             "identified_competitors": ["Competitor A", "Competitor B"],
-                            "gap_analysis": "Write a comprehensive 3-4 sentence paragraph explaining exactly what angles or themes the competitors covered that this draft missed entirely.",
-                            "recommended_additions": [
-                                "Highly specific section to add (e.g., 'Pricing Breakdown') and what it should include.",
-                                "Highly specific case study, metric, or data point needed to win the click."
-                            ]
+                            "gap_analysis": "3-4 sentences explaining what themes competitors covered that this draft missed.",
+                            "recommended_additions": ["Specific section to add", "Specific data point to add"]
                         },
                         "seo_structure": {
-                            "score": 22,
-                            "entity_salience": "A detailed 2-3 sentence explanation of whether the target topic and related LSI keywords are clearly defined early in the text.",
+                            "entity_salience": "Are the target topic and LSI keywords defined early?",
                             "header_optimizations": [
-                                {"current_h2": "[Quote current weak H2/H3]", "suggested_h2": "[Optimized H2/H3]", "reasoning": "Intent match improvement."}
+                                {"current_h2": "Weak H2", "suggested_h2": "Optimized H2", "reasoning": "Intent match"}
                             ]
                         },
                         "geo_parseability": {
-                            "score": 15,
-                            "definitional_clarity": "Provide a complete, copy-pasteable 2-3 sentence 'What is X?' definition optimized specifically for LLM extraction that they can insert into their draft.",
-                            "suggested_table": "Describe a specific data table the writer should insert. Tell them exactly what the column headers and row data should represent to make the piece more AI-parseable.",
-                            "structural_formatting": "A detailed paragraph critiquing their lack of bullet points, bold text, or scanning elements."
+                            "definitional_clarity": "Provide a copy-pasteable 2-3 sentence 'What is X?' definition.",
+                            "suggested_table": "Describe a specific data table the writer should insert.",
+                            "structural_formatting": "Critique their lack of bullet points or bold text."
                         }
                     }
                 }
+                
+                Iterate chronologically through the draft. Include at least 3-5 blocks in your block_by_block_analysis array, focusing on the weakest paragraphs that need the most intervention.
                 """
                 
                 user_prompt = f"""
@@ -104,12 +97,12 @@ if submit_button:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    temperature=0.3 # Slightly higher to allow for more robust paragraph generation
+                    temperature=0.2 
                 )
                 
                 result = json.loads(response.choices[0].message.content)
                 
-                # --- RENDER THE NEW DENSE DASHBOARD ---
+                # RENDER DASHBOARD
                 st.success("Deep Analysis Complete!")
                 
                 score_col, comp_col = st.columns([1, 2])
@@ -127,8 +120,8 @@ if submit_button:
                 
                 with comp_col:
                     st.header("⚔️ Contextual Competitors Evaluated")
-                    pillars = result.get("pillars", {})
-                    competitors = pillars.get("competitive_info_gain", {}).get("identified_competitors", [])
+                    macro = result.get("macro_pillars", {})
+                    competitors = macro.get("competitive_info_gain", {}).get("identified_competitors", [])
                     if competitors:
                         for comp in competitors:
                             st.markdown(f"• **{comp}**")
@@ -143,33 +136,33 @@ if submit_button:
                     
                 st.divider()
                 
-                st.subheader("🔍 The Definitive Grading Rubric")
+                # BLOCK BY BLOCK ANALYSIS
+                st.subheader("🔍 Paragraph-by-Paragraph Breakdown")
+                blocks = result.get("block_by_block_analysis", [])
                 
-                # Editorial Expander
-                with st.expander(f"✍️ Editorial & Brand Voice ({pillars.get('editorial', {}).get('score', 0)}/25)"):
-                    ed = pillars.get('editorial', {})
-                    st.markdown(f"**Comprehensive Analysis:**<br>{ed.get('comprehensive_analysis')}", unsafe_allow_html=True)
-                    st.markdown("---")
-                    st.markdown("**Surgical Line Edits:**")
-                    for edit in ed.get('line_edits', []):
-                        st.error(f"**Weak Copy:** \"{edit.get('quote')}\"")
-                        st.success(f"**Pro Rewrite:** \"{edit.get('rewrite')}\"")
-                        st.caption(f"**Reasoning:** {edit.get('reason')}")
-                        st.write("")
+                for index, block in enumerate(blocks):
+                    with st.expander(f"Block {index + 1}: \"{block.get('original_block_excerpt')}...\" - [{block.get('primary_issue')}]"):
+                        st.markdown(f"**Critique:** {block.get('critique')}")
+                        st.success(f"**Pro Rewrite:** \"{block.get('pro_rewrite')}\"")
                 
-                # Info Gain Expander
-                with st.expander(f"⚔️ Information Gain & Competitors ({pillars.get('competitive_info_gain', {}).get('score', 0)}/25)"):
-                    ig = pillars.get('competitive_info_gain', {})
+                st.divider()
+                
+                # MACRO PILLARS
+                st.subheader("🌐 Macro Strategy")
+                
+                # Info Gain
+                with st.expander("⚔️ Information Gain & Competitors"):
+                    ig = macro.get('competitive_info_gain', {})
                     st.markdown(f"**Competitive Gap Analysis:**<br>{ig.get('gap_analysis')}", unsafe_allow_html=True)
                     st.markdown("---")
-                    st.markdown("**Required Additions to Win the Click:**")
+                    st.markdown("**Required Additions:**")
                     for addition in ig.get('recommended_additions', []):
                         st.markdown(f"• {addition}")
                 
-                # SEO Expander
-                with st.expander(f"📈 SEO & Intent Match ({pillars.get('seo_structure', {}).get('score', 0)}/25)"):
-                    seo = pillars.get('seo_structure', {})
-                    st.markdown(f"**Entity Salience (First 100 Words):**<br>{seo.get('entity_salience')}", unsafe_allow_html=True)
+                # SEO
+                with st.expander("📈 SEO & Intent Match"):
+                    seo = macro.get('seo_structure', {})
+                    st.markdown(f"**Entity Salience:**<br>{seo.get('entity_salience')}", unsafe_allow_html=True)
                     st.markdown("---")
                     st.markdown("**Header Optimizations:**")
                     for header in seo.get('header_optimizations', []):
@@ -178,10 +171,10 @@ if submit_button:
                         st.caption(f"**Reasoning:** {header.get('reasoning')}")
                         st.write("")
                 
-                # GEO Expander
-                with st.expander(f"🤖 GEO / AI Parseability ({pillars.get('geo_parseability', {}).get('score', 0)}/25)"):
-                    geo = pillars.get('geo_parseability', {})
-                    st.markdown(f"**Definitional Clarity (Copy-Paste Insert):**<br>*{geo.get('definitional_clarity')}*", unsafe_allow_html=True)
+                # GEO
+                with st.expander("🤖 GEO / AI Parseability"):
+                    geo = macro.get('geo_parseability', {})
+                    st.markdown(f"**Definitional Clarity:**<br>*{geo.get('definitional_clarity')}*", unsafe_allow_html=True)
                     st.markdown("---")
                     st.markdown(f"**Suggested Data Table:**<br>{geo.get('suggested_table')}", unsafe_allow_html=True)
                     st.markdown("---")
